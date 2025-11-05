@@ -1,15 +1,14 @@
 pipeline {
-    agent any
-
-    environment {
-        NODE_ENV = 'development'
+    agent {
+        docker { image 'node:20' }
     }
 
     stages {
         stage('Checkout') {
             steps {
-                // Pull your repo from GitHub
-                git branch: 'main', url: 'https://github.com/amitsingh17051/nextapp.git', credentialsId: 'your-credentials-id'
+                git branch: 'main', 
+                    url: 'https://github.com/amitsingh17051/nextapp.git', 
+                    credentialsId: 'your-credentials-id'
             }
         }
 
@@ -27,7 +26,6 @@ pipeline {
 
         stage('Start App') {
             steps {
-                // Start the app in the background
                 sh 'nohup npm start &'
             }
         }
@@ -35,11 +33,10 @@ pipeline {
 
     post {
         success {
-            echo 'Build and deployment completed successfully!'
+            echo 'Build and start completed successfully!'
         }
         failure {
-            echo 'Something went wrong during the build!'
+            echo 'Build failed!'
         }
     }
 }
-
