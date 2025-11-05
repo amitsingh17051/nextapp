@@ -1,8 +1,5 @@
 pipeline {
-    agent {
-        docker { image 'node:20' }
-    }
-
+    agent any
     stages {
         stage('Checkout') {
             steps {
@@ -11,32 +8,20 @@ pipeline {
                     credentialsId: 'your-credentials-id'
             }
         }
-
         stage('Install Dependencies') {
             steps {
-                sh 'npm install'
+                sh 'apt-get update && apt-get install -y nodejs npm && npm install'
             }
         }
-
         stage('Build') {
             steps {
                 sh 'npm run build'
             }
         }
-
         stage('Start App') {
             steps {
                 sh 'nohup npm start &'
             }
-        }
-    }
-
-    post {
-        success {
-            echo 'Build and start completed successfully!'
-        }
-        failure {
-            echo 'Build failed!'
         }
     }
 }
