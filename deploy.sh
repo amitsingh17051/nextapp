@@ -23,6 +23,9 @@ npm run build
 # Create deployment archive
 echo "Creating deployment package..."
 tar -czf deploy.tar.gz \
+    --exclude=node_modules \
+    --exclude=.git \
+    --exclude=.next/cache \
     .next \
     app \
     public \
@@ -31,8 +34,7 @@ tar -czf deploy.tar.gz \
     next.config.js \
     postcss.config.mjs \
     tsconfig.json \
-    next-env.d.ts \
-    --exclude=node_modules
+    next-env.d.ts
 
 # Prepare SSH command
 SSH_CMD="ssh -o StrictHostKeyChecking=no -p ${VM_PORT}"

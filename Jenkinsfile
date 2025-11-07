@@ -37,6 +37,9 @@ pipeline {
                     sh '''
                         echo "Creating deployment package..."
                         tar -czf deploy.tar.gz \
+                            --exclude=node_modules \
+                            --exclude=.git \
+                            --exclude=.next/cache \
                             .next \
                             app \
                             public \
@@ -45,8 +48,7 @@ pipeline {
                             next.config.js \
                             postcss.config.mjs \
                             tsconfig.json \
-                            next-env.d.ts \
-                            --exclude=node_modules
+                            next-env.d.ts
                     '''
                     
                     // Transfer files to VM using SSH
