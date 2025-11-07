@@ -49,43 +49,64 @@ pipeline {
                             --exclude=node_modules
                     '''
                     
-                    // Transfer files to VM
-                    // Note: You'll need to configure SSH credentials in Jenkins
-                    // Option 1: Using SSH key (recommended)
-                    // Add your SSH private key as a Jenkins credential with ID 'vagrant-ssh-key'
+                    // Transfer files to VM using SSH
+                    // Make sure passwordless SSH is set up or use SSH agent
                     sh """
                         echo "Transferring files to Vagrant VM..."
-                        ssh -o StrictHostKeyChecking=no -p ${VM_PORT} ${VM_USER}@${VM_HOST} 'mkdir -p ${VM_DEPLOY_PATH}'
-                        scp -o StrictHostKeyChecking=no -P ${VM_PORT} deploy.tar.gz ${VM_USER}@${VM_HOST}:${VM_DEPLOY_PATH}/
+                        ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p ${VM_PORT} ${VM_USER}@${VM_HOST} 'mkdir -p ${VM_DEPLOY_PATH}' || {
+                            echo "Error: Cannot connect to VM. Please ensure:"
+                            echo "1. VM is running and accessible"
+                            echo "2. SSH key is set up for passwordless access"
+                            echo "3. VM_HOST, VM_USER, VM_PORT are correct"
+                            exit 1
+                        }
+                        scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -P ${VM_PORT} deploy.tar.gz ${VM_USER}@${VM_HOST}:${VM_DEPLOY_PATH}/
                     """
                     
                     // Deploy on VM
                     sh """
                         echo "Deploying application on VM..."
-                        ssh -o StrictHostKeyChecking=no -p ${VM_PORT} ${VM_USER}@${VM_HOST} '''
+                        ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p ${VM_PORT} ${VM_USER}@${VM_HOST} << 'ENDSSH'
+                            set -e
                             cd ${VM_DEPLOY_PATH}
                             
                             # Stop existing application if running
+                            echo "Stopping existing application..."
                             pkill -f 'next start' || true
+                            sleep 2
+                            
+                            # Backup current deployment (optional)
+                            if [ -d ".next" ]; then
+                                echo "Backing up current deployment..."
+                                BACKUP_FILE="backup-\$(date +%Y%m%d-%H%M%S).tar.gz"
+                                tar -czf "\${BACKUP_FILE}" .next app public package.json 2>/dev/null || true
+                                echo "Backup created: \${BACKUP_FILE}"
+                            fi
                             
                             # Extract new files
+                            echo "Extracting new deployment..."
                             tar -xzf deploy.tar.gz
+                            rm -f deploy.tar.gz
                             
                             # Install/update dependencies
+                            echo "Installing dependencies..."
                             npm install --production
                             
                             # Start the application
+                            echo "Starting application..."
                             nohup npm start > app.log 2>&1 &
                             
-                            # Wait a moment and check if it started
+                            # Wait and verify
                             sleep 3
                             if pgrep -f 'next start' > /dev/null; then
-                                echo "Application started successfully"
+                                echo "✓ Application started successfully"
+                                echo "Application is running on port 3000"
                             else
-                                echo "Warning: Application may not have started. Check app.log"
+                                echo "✗ Error: Application failed to start. Check app.log for details"
+                                tail -20 app.log || true
                                 exit 1
                             fi
-                        '''
+ENDSSH
                     """
                     
                     // Cleanup
